@@ -25,10 +25,23 @@ from marznode.config import (
     SING_BOX_CONFIG_PATH,
 )
 from marznode.service import MarzService
-from marznode.storage import MemoryStorage
+from marznode.storage import BaseStorage, MemoryStorage, SqliteStorage
 from marznode.utils.ssl import generate_keypair, create_secure_context
 
 logger = logging.getLogger(__name__)
+
+
+def _build_storage() -> BaseStorage:
+    storage_type = config.MARZNODE_STORAGE_TYPE
+    if storage_type == "sqlite":
+        logger.info("Using SqliteStorage at %s", config.MARZNODE_DB_PATH)
+        return SqliteStorage(db_path=config.MARZNODE_DB_PATH)
+    if storage_type != "memory":
+        logger.warning(
+            "Unknown MARZNODE_STORAGE_TYPE=%r, falling back to memory",
+            storage_type,
+        )
+    return MemoryStorage()
 
 
 async def main():
@@ -51,7 +64,7 @@ async def main():
             trusted=config.SSL_CLIENT_CERT_FILE,
         )
 
-    storage = MemoryStorage()
+    storage = _build_storage()
     backends = dict()
     if XRAY_ENABLED:
         xray_backend = XrayBackend(
