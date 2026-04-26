@@ -1,23 +1,34 @@
-FROM tobyxdd/hysteria:v2 AS hysteria-image
-FROM jklolixxs/sing-box:latest AS sing-box-image
-
 FROM python:3.12-alpine
 
 ENV PYTHONUNBUFFERED=1
 
-COPY --from=hysteria-image /usr/local/bin/hysteria /usr/local/bin/hysteria
-COPY --from=sing-box-image /usr/local/bin/sing-box /usr/local/bin/sing-box
-
 WORKDIR /app
+
+RUN apk add --no-cache curl unzip ca-certificates
+
+ARG XRAY_VERSION=v25.3.6
+RUN curl -fL -o /tmp/xray.zip \
+        "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" \
+    && unzip /tmp/xray.zip -d /usr/local/bin xray \
+    && chmod +x /usr/local/bin/xray \
+    && rm /tmp/xray.zip \
+    && mkdir -p /usr/local/lib/xray \
+    && curl -fL -o /usr/local/lib/xray/geosite.dat \
+        "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" \
+    && curl -fL -o /usr/local/lib/xray/geoip.dat \
+        "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" \
+    && xray version | head -2
+
+COPY requirements.txt .
+RUN apk add --no-cache --virtual .build-deps alpine-sdk libffi-dev \
+    && pip install --no-cache-dir -r requirements.txt \
+    && apk del --purge .build-deps
 
 COPY . .
 
-RUN mkdir /etc/init.d/
-
-RUN apk add --no-cache curl unzip
-
-RUN curl -L https://raw.githubusercontent.com/XTLS/alpinelinux-install-xray/main/install-release.sh | ash
-
-RUN apk add --no-cache alpine-sdk libffi-dev && pip install --no-cache-dir -r /app/requirements.txt && apk del -r alpine-sdk libffi-dev curl unzip
+ENV XRAY_EXECUTABLE_PATH=/usr/local/bin/xray \
+    XRAY_ASSETS_PATH=/usr/local/lib/xray \
+    MARZNODE_STORAGE_TYPE=sqlite \
+    MARZNODE_DB_PATH=/var/lib/marznode/marznode.db
 
 CMD ["python3", "marznode.py"]
