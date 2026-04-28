@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel
 
 if TYPE_CHECKING:
-    from marznode.models import Inbound
+    from marznode.models import Inbound, Outbound
 
 
 class User(BaseModel):
@@ -11,3 +11,4 @@ class User(BaseModel):
     username: str
     key: str
     inbounds: list["Inbound"] = []
+    outbounds: list["Outbound"] = []

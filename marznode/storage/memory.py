@@ -1,7 +1,7 @@
 """Storage backend for storing marznode data in memory"""
 
 from .base import BaseStorage
-from ..models import User, Inbound
+from ..models import User, Inbound, Outbound
 
 
 class MemoryStorage(BaseStorage):
@@ -11,7 +11,7 @@ class MemoryStorage(BaseStorage):
     """
 
     def __init__(self):
-        self.storage = dict({"users": {}, "inbounds": {}})
+        self.storage = dict({"users": {}, "inbounds": {}, "user_outbounds": {}})
 
     async def list_users(self, user_id: int | None = None) -> list[User] | User | None:
         if user_id:
@@ -62,3 +62,18 @@ class MemoryStorage(BaseStorage):
 
     async def flush_users(self):
         self.storage["users"] = {}
+        self.storage["user_outbounds"] = {}
+
+    async def update_user_outbounds(
+        self, user: User, outbounds: list[Outbound]
+    ) -> None:
+        if outbounds:
+            self.storage["user_outbounds"][user.id] = list(outbounds)
+        else:
+            self.storage["user_outbounds"].pop(user.id, None)
+        if self.storage["users"].get(user.id):
+            self.storage["users"][user.id].outbounds = list(outbounds)
+        user.outbounds = list(outbounds)
+
+    async def list_user_outbounds(self, user_id: int) -> list[Outbound]:
+        return list(self.storage["user_outbounds"].get(user_id, []))

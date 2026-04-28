@@ -55,13 +55,31 @@ class User(_message.Message):
     key: str
     def __init__(self, id: _Optional[int] = ..., username: _Optional[str] = ..., key: _Optional[str] = ...) -> None: ...
 
+class Outbound(_message.Message):
+    __slots__ = ("protocol", "address", "port", "username", "password", "inbound_tags")
+    PROTOCOL_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    INBOUND_TAGS_FIELD_NUMBER: _ClassVar[int]
+    protocol: str
+    address: str
+    port: int
+    username: str
+    password: str
+    inbound_tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, protocol: _Optional[str] = ..., address: _Optional[str] = ..., port: _Optional[int] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., inbound_tags: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class UserData(_message.Message):
-    __slots__ = ("user", "inbounds")
+    __slots__ = ("user", "inbounds", "outbounds")
     USER_FIELD_NUMBER: _ClassVar[int]
     INBOUNDS_FIELD_NUMBER: _ClassVar[int]
+    OUTBOUNDS_FIELD_NUMBER: _ClassVar[int]
     user: User
     inbounds: _containers.RepeatedCompositeFieldContainer[Inbound]
-    def __init__(self, user: _Optional[_Union[User, _Mapping]] = ..., inbounds: _Optional[_Iterable[_Union[Inbound, _Mapping]]] = ...) -> None: ...
+    outbounds: _containers.RepeatedCompositeFieldContainer[Outbound]
+    def __init__(self, user: _Optional[_Union[User, _Mapping]] = ..., inbounds: _Optional[_Iterable[_Union[Inbound, _Mapping]]] = ..., outbounds: _Optional[_Iterable[_Union[Outbound, _Mapping]]] = ...) -> None: ...
 
 class UsersData(_message.Message):
     __slots__ = ("users_data",)

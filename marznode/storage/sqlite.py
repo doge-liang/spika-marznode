@@ -15,7 +15,7 @@ from pathlib import Path
 import aiosqlite
 
 from .base import BaseStorage
-from ..models import Inbound, User
+from ..models import Inbound, Outbound, User
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,18 @@ class SqliteStorage(BaseStorage):
                 );
                 CREATE INDEX IF NOT EXISTS idx_user_inbounds_tag
                     ON user_inbounds(inbound_tag);
+                CREATE TABLE IF NOT EXISTS user_outbounds (
+                    user_id INTEGER NOT NULL,
+                    seq INTEGER NOT NULL,
+                    protocol TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    port INTEGER NOT NULL,
+                    username TEXT,
+                    password TEXT,
+                    inbound_tags_json TEXT NOT NULL DEFAULT '[]',
+                    PRIMARY KEY (user_id, seq),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
                 """
             )
             conn.commit()
@@ -88,6 +100,7 @@ class SqliteStorage(BaseStorage):
                 username=row[1],
                 key=row[2],
                 inbounds=self._hydrate_inbounds([r[0] for r in tag_rows]),
+                outbounds=await self.list_user_outbounds(row[0]),
             )
 
         async with db.execute("SELECT id, username, key FROM users") as cur:
@@ -105,6 +118,7 @@ class SqliteStorage(BaseStorage):
                 username=r[1],
                 key=r[2],
                 inbounds=self._hydrate_inbounds(tags_by_user.get(r[0], [])),
+                outbounds=await self.list_user_outbounds(r[0]),
             )
             for r in user_rows
         ]
@@ -188,6 +202,75 @@ class SqliteStorage(BaseStorage):
         db = await self._conn()
         await db.execute("DELETE FROM users")
         await db.commit()
+
+    async def update_user_outbounds(
+        self, user: User, outbounds: list[Outbound]
+    ) -> None:
+        import json as _json
+
+        db = await self._conn()
+        await db.execute(
+            """
+            INSERT INTO users (id, username, key) VALUES (?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                username = excluded.username,
+                key = excluded.key
+            """,
+            (user.id, user.username, user.key),
+        )
+        await db.execute(
+            "DELETE FROM user_outbounds WHERE user_id = ?", (user.id,)
+        )
+        if outbounds:
+            await db.executemany(
+                """
+                INSERT INTO user_outbounds
+                    (user_id, seq, protocol, address, port,
+                     username, password, inbound_tags_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        user.id,
+                        i,
+                        ob.protocol,
+                        ob.address,
+                        ob.port,
+                        ob.username,
+                        ob.password,
+                        _json.dumps(list(ob.inbound_tags or [])),
+                    )
+                    for i, ob in enumerate(outbounds)
+                ],
+            )
+        await db.commit()
+        user.outbounds = list(outbounds)
+
+    async def list_user_outbounds(self, user_id: int) -> list[Outbound]:
+        import json as _json
+
+        db = await self._conn()
+        async with db.execute(
+            """
+            SELECT protocol, address, port, username, password, inbound_tags_json
+              FROM user_outbounds
+             WHERE user_id = ?
+             ORDER BY seq
+            """,
+            (user_id,),
+        ) as cur:
+            rows = await cur.fetchall()
+        return [
+            Outbound(
+                protocol=r[0],
+                address=r[1],
+                port=r[2],
+                username=r[3],
+                password=r[4],
+                inbound_tags=_json.loads(r[5] or "[]"),
+            )
+            for r in rows
+        ]
 
     def register_inbound(self, inbound: Inbound) -> None:
         self._inbounds[inbound.tag] = inbound

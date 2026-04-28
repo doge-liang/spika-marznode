@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from marznode.models import Inbound, User
+from marznode.models import Inbound, Outbound, User
 
 
 class BaseStorage(ABC):
@@ -61,6 +61,25 @@ class BaseStorage(ABC):
         registers a new inbound
         :param inbound: the inbound to register
         :return: nothing
+        """
+
+    @abstractmethod
+    async def update_user_outbounds(
+        self, user: User, outbounds: list[Outbound]
+    ) -> None:
+        """
+        replaces the user's per-user upstream outbounds with the given list
+        :param user: the user
+        :param outbounds: list of outbounds (empty list = drop all)
+        :return: nothing
+        """
+
+    @abstractmethod
+    async def list_user_outbounds(self, user_id: int) -> list[Outbound]:
+        """
+        lists all per-user upstream outbounds for a user
+        :param user_id: the user id
+        :return: list of outbounds (empty if none)
         """
 
     def remove_inbound(self, inbound: Inbound | str) -> None:
