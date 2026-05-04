@@ -1,0 +1,58 @@
+{
+  "log": {"loglevel": "warning"},
+  "inbounds": [
+    {
+      "tag": "vmess-tcp",
+      "protocol": "vmess",
+      "port": 8001,
+      "settings": {"clients": []},
+      "streamSettings": {
+        "network": "tcp",
+        "tcpSettings": {
+          "header": {
+            "type": "http",
+            "request": {
+              "path": ["/api"],
+              "headers": {"Host": ["example.com", "alt.example.com"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "tag": "vless-ws",
+      "protocol": "vless",
+      "port": 8002,
+      "settings": {"clients": [], "decryption": "none"},
+      "streamSettings": {
+        "network": "ws",
+        "wsSettings": {"path": "/ws", "host": "ws.example.com"},
+        "security": "tls",
+        "tlsSettings": {}
+      }
+    },
+    {
+      "tag": "trojan-grpc",
+      "protocol": "trojan",
+      "port": 8003,
+      "settings": {"clients": []},
+      "streamSettings": {
+        "network": "grpc",
+        "grpcSettings": {"serviceName": "trojan-service"}
+      }
+    },
+    {
+      "tag": "shadowsocks-1",
+      "protocol": "shadowsocks",
+      "port": 8004,
+      "settings": {"clients": [], "method": "chacha20-poly1305"}
+    },
+    {
+      "tag": "no-tag-skipped-because-protocol",
+      "protocol": "dokodemo-door",
+      "port": 8005,
+      "settings": {}
+    }
+  ],
+  "outbounds": [{"protocol": "freedom", "tag": "direct"}]
+}

@@ -1,0 +1,24 @@
+{
+  "log": {"loglevel": "warning"},
+  "policy": {
+    "system": {"statsInboundDownlink": true}
+  },
+  "inbounds": [
+    {
+      "tag": "vless-reality-tcp",
+      "protocol": "vless",
+      "port": 9001,
+      "settings": {"clients": [], "decryption": "none"},
+      "streamSettings": {
+        "network": "tcp",
+        "security": "reality",
+        "realitySettings": {
+          "serverNames": ["www.example.com", "alt.example.com"],
+          "shortIds": ["abcd1234", "ffff"],
+          "privateKey": "PRIVATE-KEY-PLACEHOLDER"
+        }
+      }
+    }
+  ],
+  "outbounds": [{"protocol": "freedom", "tag": "direct"}]
+}

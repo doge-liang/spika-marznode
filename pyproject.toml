@@ -27,6 +27,15 @@ description = "yet another controller for vpn servers"
 readme = "README.md"
 keywords = ["marzneshin", "xray", "xray-core", "vpn", "proxy"]
 
+[project.optional-dependencies]
+test = [
+    "pytest >= 8.0",
+    "pytest-asyncio >= 0.23",
+    "pytest-cov >= 5.0",
+    "aioresponses >= 0.7",
+    "cryptography >= 41.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/khodedawsh/marznode"
 Repository = "https://github.com/khodedawsh/marznode.git"
@@ -34,6 +43,33 @@ Issues = "https://github.com/khodedawsh/marznode/issues"
 
 [tool.black]
 extend-exclude = "(.*_grpc.py|.*_pb2.py)"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning:google.*",
+    "ignore::DeprecationWarning:grpclib.*",
+]
+addopts = "--cov=marznode --cov-report=term-missing --cov-report=xml"
+
+[tool.coverage.run]
+source = ["marznode"]
+omit = [
+    "marznode/_version.py",
+    "marznode/**/*_pb2.py",
+    "marznode/**/*_grpc.py",
+    "marznode/**/*.pyi",
+    "marznode/backends/xray/api/**",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.hatch]
 

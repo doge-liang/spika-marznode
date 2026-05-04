@@ -10,3 +10,9 @@ clean:
 proto: clean
 	$(GEN) marznode/service/service.proto
 
+test:
+	pytest
+
+test-cov:
+	pytest --cov-report=html --cov-report=term-missing
+

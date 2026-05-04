@@ -1,0 +1,58 @@
+{
+  "log": {"level": "warn"},
+  "inbounds": [
+    {
+      "type": "vmess",
+      "tag": "sb-vmess",
+      "listen": "::",
+      "listen_port": 7001,
+      "users": []
+    },
+    {
+      "type": "vless",
+      "tag": "sb-vless-reality",
+      "listen": "::",
+      "listen_port": 7002,
+      "users": [],
+      "tls": {
+        "enabled": true,
+        "server_name": "example.com",
+        "reality": {
+          "enabled": true,
+          "private_key": "PRIVATE-KEY-PLACEHOLDER",
+          "short_id": ["abcd1234", "ffff"]
+        }
+      }
+    },
+    {
+      "type": "trojan",
+      "tag": "sb-trojan-ws",
+      "listen": "::",
+      "listen_port": 7003,
+      "users": [],
+      "transport": {"type": "ws", "path": "/trojan"}
+    },
+    {
+      "type": "hysteria2",
+      "tag": "sb-hysteria",
+      "listen": "::",
+      "listen_port": 7004,
+      "users": [],
+      "obfs": {"type": "salamander", "password": "obfs-pass"}
+    },
+    {
+      "type": "shadowtls",
+      "tag": "sb-shadowtls",
+      "listen": "::",
+      "listen_port": 7005,
+      "version": 3
+    },
+    {
+      "type": "direct",
+      "tag": "sb-skipped",
+      "listen": "::",
+      "listen_port": 7006
+    }
+  ],
+  "outbounds": [{"type": "direct", "tag": "direct"}]
+}
