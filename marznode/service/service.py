@@ -29,7 +29,7 @@ from .service_pb2 import (
     UsersStats,
     LogLine,
 )
-from ..models import User, Inbound as InboundModel
+from ..models import User, Inbound as InboundModel, Outbound as OutboundModel
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,24 @@ class MarzService(MarzServiceBase):
             )
             await backend.remove_user(user, inbound)
 
+    @staticmethod
+    def _decode_outbounds(user_data: UserData) -> list[OutboundModel]:
+        return [
+            OutboundModel(
+                protocol=ob.protocol,
+                address=ob.address,
+                port=ob.port,
+                username=ob.username if ob.HasField("username") else None,
+                password=ob.password if ob.HasField("password") else None,
+                inbound_tags=list(ob.inbound_tags),
+            )
+            for ob in user_data.outbounds
+        ]
+
     async def _update_user(self, user_data: UserData):
         user = user_data.user
         user = User(id=user.id, username=user.username, key=user.key)
+        outbounds = self._decode_outbounds(user_data)
         storage_user = await self._storage.list_users(user.id)
         if not storage_user and len(user_data.inbounds) > 0:
             """add the user in case there isn't any currently
@@ -75,6 +90,7 @@ class MarzService(MarzServiceBase):
                 user,
                 [i for i in inbound_additions],
             )
+            await self._storage.update_user_outbounds(user, outbounds)
             return
         elif not user_data.inbounds and storage_user:
             """remove in case we have the user but client has sent
@@ -85,7 +101,7 @@ class MarzService(MarzServiceBase):
             """we're asked to remove a user which we don't have, just pass."""
             return
 
-        """otherwise synchronize the user with what 
+        """otherwise synchronize the user with what
         the client has sent us"""
         storage_tags = {i.tag for i in storage_user.inbounds}
         new_tags = {i.tag for i in user_data.inbounds}
@@ -97,6 +113,7 @@ class MarzService(MarzServiceBase):
         await self._remove_user(storage_user, removed_inbounds)
         await self._add_user(storage_user, added_inbounds)
         await self._storage.update_user_inbounds(storage_user, new_inbounds)
+        await self._storage.update_user_outbounds(storage_user, outbounds)
 
     async def SyncUsers(self, stream: Stream[UserData, Empty]) -> None:
         async for user_data in stream:
