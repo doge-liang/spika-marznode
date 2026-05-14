@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  proto-and-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: regenerate proto and check no drift
+        run: |
+          python -m grpc_tools.protoc \
+            -I . \
+            --python_out=. --grpclib_python_out=. --pyi_out=. \
+            marznode/service/service.proto
+          git diff --exit-code -- marznode/service/
+
+      - name: smoke import
+        run: python -c "import marznode; print('ok')"
