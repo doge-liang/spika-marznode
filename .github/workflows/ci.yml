@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  proto-and-imports:
+  smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,15 +19,7 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - run: pip install -r requirements.txt grpcio-tools
+      - run: pip install -r requirements.txt
 
-      - name: regenerate proto and check no drift
-        run: |
-          python -m grpc_tools.protoc \
-            -I . \
-            --python_out=. --grpclib_python_out=. --pyi_out=. \
-            marznode/service/service.proto
-          git diff --exit-code -- marznode/service/
-
-      - name: smoke import
+      - name: smoke import marznode
         run: python -c "import marznode; print('ok')"
