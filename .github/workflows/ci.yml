@@ -19,7 +19,7 @@ jobs:
           python-version: '3.12'
           cache: pip
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt grpcio-tools
 
       - name: regenerate proto and check no drift
         run: |
