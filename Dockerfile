@@ -8,7 +8,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     MARZNODE_STORAGE_TYPE=sqlite \
-    MARZNODE_DB_PATH=/var/lib/marznode/marznode.db
+    MARZNODE_DB_PATH=/var/lib/marznode/marznode.db \
+    XRAY_EXECUTABLE_PATH=/usr/local/bin/xray \
+    XRAY_ASSETS_PATH=/usr/local/lib/xray
 
 WORKDIR /app
 
