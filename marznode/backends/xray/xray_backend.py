@@ -93,6 +93,8 @@ class XrayBackend(VPNBackend):
         xray_api_port = find_free_port()
         self._config = XrayConfig(backend_config, api_port=xray_api_port)
         self._config.register_inbounds(self._storage)
+        users = await self._storage.list_users()
+        self._config.apply_user_outbounds(users if isinstance(users, list) else [])
         self._inbound_tags = {i["tag"] for i in self._config.inbounds}
         self._inbounds = list(self._config.list_inbounds())
         self._api = XrayAPI("127.0.0.1", xray_api_port)

@@ -205,6 +205,48 @@ class XrayConfig(dict):
             for i in self.inbounds_by_tag.values()
         ]
 
+    def apply_user_outbounds(self, users: list) -> None:
+        """Inject per-user upstream outbounds + routing rules from storage.
+
+        Each Outbound becomes an xray outbound tagged ``res-{username}`` and a
+        routing rule binding ``{id}.{username}`` (optionally scoped to the
+        Outbound's inbound_tags) to it. xray can't hot-add outbounds via the
+        HandlerService API, so this must run on the in-memory config before
+        the xray process starts.
+        """
+        self.setdefault("outbounds", [])
+        routing = self.setdefault("routing", {})
+        rules = routing.setdefault("rules", [])
+        existing_tags = {o.get("tag") for o in self["outbounds"]}
+
+        for user in users:
+            for ob in getattr(user, "outbounds", []) or []:
+                tag = f"res-{user.username}"
+                if tag in existing_tags:
+                    continue
+                server = {"address": ob.address, "port": ob.port}
+                if ob.username:
+                    server["users"] = [
+                        {"user": ob.username, "pass": ob.password or ""}
+                    ]
+                self["outbounds"].append(
+                    {
+                        "tag": tag,
+                        "protocol": ob.protocol,
+                        "settings": {"servers": [server]},
+                    }
+                )
+                existing_tags.add(tag)
+
+                rule = {
+                    "type": "field",
+                    "user": [f"{user.id}.{user.username}"],
+                    "outboundTag": tag,
+                }
+                if ob.inbound_tags:
+                    rule["inboundTag"] = list(ob.inbound_tags)
+                rules.append(rule)
+
     def to_json(self, **json_kwargs):
         if DEBUG:
             with open('xray_config_debug.json', 'w') as f:
