@@ -97,6 +97,7 @@ class XrayBackend(VPNBackend):
         self._inbounds = list(self._config.list_inbounds())
         self._api = XrayAPI("127.0.0.1", xray_api_port)
         await self._runner.start(self._config)
+        await self.add_storage_users()
 
     async def stop(self):
         await self._runner.stop()
