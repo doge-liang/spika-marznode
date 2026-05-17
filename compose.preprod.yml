@@ -1,4 +1,4 @@
-# True-staging marznode — verified topology (2026-05-17).
+# True-preprod marznode — verified topology (2026-05-17).
 #
 # Differs from a prod (host-network) deploy on purpose, so the panel<->node
 # path is exercised the way a real pre-prod gate should be:
@@ -14,7 +14,7 @@
 # xxh128, which derives a *different* UUID from the key. Mismatch =>
 # `proxy/vless/encoding: invalid request user id` (user present in sqlite,
 # add_user logged, panel healthy — yet every client rejected). This exact
-# divergence was caught here by true-staging without touching prod.
+# divergence was caught here by true-preprod without touching prod.
 #
 # Image is PINNED (never :latest). Reuses /var/lib/marznode for sqlite +
 # the panel CA (spika_panel_ca.pem) + the node's auto-gen server cert.
@@ -22,7 +22,7 @@
 services:
   marznode:
     image: ghcr.io/doge-liang/spika-marznode:0.7.0
-    container_name: spika-marznode-staging
+    container_name: spika-marznode-preprod
     restart: unless-stopped
     environment:
       SERVICE_ADDRESS: "0.0.0.0"
@@ -48,12 +48,12 @@ services:
       - "2096:2096"
       - "8446:8446/udp"
     networks:
-      spika-staging-net:
+      spika-preprod-net:
         ipv4_address: 172.30.0.2
 
 networks:
-  spika-staging-net:
-    name: spika-staging-net
+  spika-preprod-net:
+    name: spika-preprod-net
     driver: bridge
     ipam:
       config:
