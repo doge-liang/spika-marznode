@@ -1,0 +1,60 @@
+# True-staging marznode — verified topology (2026-05-17).
+#
+# Differs from a prod (host-network) deploy on purpose, so the panel<->node
+# path is exercised the way a real pre-prod gate should be:
+#   * dedicated bridge network + static IP  -> panel<->node gRPC traverses a
+#     real veth/iptables path, not a 127.0.0.1 loopback shortcut
+#   * INSECURE=False + SSL_CLIENT_CERT_FILE  -> real panel<->node mTLS
+#     (mirrors prod; node auto-generates its own server cert on first boot)
+#   * VPN ports published to the host's public IP  -> a real external client
+#     (FLClash / handshake probe) can connect without touching prod
+#
+# CRITICAL — AUTH_GENERATION_ALGORITHM must equal the PANEL's setting.
+# Panel .env uses `plain` (vless UUID == user key). marznode DEFAULTS to
+# xxh128, which derives a *different* UUID from the key. Mismatch =>
+# `proxy/vless/encoding: invalid request user id` (user present in sqlite,
+# add_user logged, panel healthy — yet every client rejected). This exact
+# divergence was caught here by true-staging without touching prod.
+#
+# Image is PINNED (never :latest). Reuses /var/lib/marznode for sqlite +
+# the panel CA (spika_panel_ca.pem) + the node's auto-gen server cert.
+
+services:
+  marznode:
+    image: ghcr.io/doge-liang/spika-marznode:0.7.0
+    container_name: spika-marznode-staging
+    restart: unless-stopped
+    environment:
+      SERVICE_ADDRESS: "0.0.0.0"
+      SERVICE_PORT: "53042"
+      INSECURE: "False"
+      AUTH_GENERATION_ALGORITHM: "plain"      # MUST match panel .env
+      SSL_CERT_FILE: "/var/lib/marznode/node_server.cert"
+      SSL_KEY_FILE: "/var/lib/marznode/node_server.key"
+      SSL_CLIENT_CERT_FILE: "/var/lib/marznode/spika_panel_ca.pem"
+      MARZNODE_STORAGE_TYPE: "sqlite"
+      MARZNODE_DB_PATH: "/var/lib/marznode/marznode.db"
+      XRAY_ENABLED: "True"
+      XRAY_EXECUTABLE_PATH: "/usr/local/bin/xray"
+      XRAY_ASSETS_PATH: "/usr/local/lib/xray"
+      XRAY_LOCATION_ASSET: "/usr/local/lib/xray"
+      XRAY_CONFIG_PATH: "/var/lib/marznode/xray_config.json"
+      SING_BOX_ENABLED: "True"
+    volumes:
+      - /var/lib/marznode:/var/lib/marznode
+    ports:
+      - "8443:8443"
+      - "443:443"
+      - "2096:2096"
+      - "8446:8446/udp"
+    networks:
+      spika-staging-net:
+        ipv4_address: 172.30.0.2
+
+networks:
+  spika-staging-net:
+    name: spika-staging-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
