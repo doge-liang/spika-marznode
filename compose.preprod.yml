@@ -21,7 +21,7 @@
 
 services:
   marznode:
-    image: ghcr.io/doge-liang/spika-marznode:0.7.0
+    image: ghcr.io/doge-liang/spika-marznode:0.7.1
     container_name: spika-marznode-preprod
     restart: unless-stopped
     environment:
