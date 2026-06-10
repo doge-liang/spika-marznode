@@ -81,8 +81,16 @@ class XrayBackend(VPNBackend):
                 logger.debug("Xray stopped unexpectedly")
                 if XRAY_RESTART_ON_FAILURE:
                     await asyncio.sleep(XRAY_RESTART_ON_FAILURE_INTERVAL)
-                    await self.start()
-                    await self.add_storage_users()
+                    try:
+                        # start() already repopulates storage users; a
+                        # second add_storage_users() here raised
+                        # EmailExistsError and permanently killed this
+                        # watchdog task after the first auto-restart.
+                        await self.start()
+                    except Exception:
+                        logger.exception(
+                            "xray auto-restart failed; watchdog stays alive"
+                        )
 
     async def start(self, backend_config: str | None = None):
         if backend_config is None:
