@@ -21,7 +21,7 @@
 
 services:
   marznode:
-    image: ghcr.io/doge-liang/spika-marznode:0.7.1
+    image: ghcr.io/doge-liang/spika-marznode:0.7.2
     container_name: spika-marznode-preprod
     restart: unless-stopped
     environment:
@@ -46,6 +46,7 @@ services:
       - "8443:8443"
       - "443:443"
       - "2096:2096"
+      - "2097:2097"
       - "8446:8446/udp"
     networks:
       spika-preprod-net:
