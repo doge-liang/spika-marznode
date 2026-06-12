@@ -86,6 +86,10 @@ class Hysteria2Account(NamedAccount, SingBoxAccount):
     password: Optional[str] = Field(None, validate_default=True)
 
 
+class AnyTLSAccount(NamedAccount, SingBoxAccount):
+    password: Optional[str] = Field(None, validate_default=True)
+
+
 class NaiveAccount(UserNamedAccount, SingBoxAccount):
     password: Optional[str] = Field(None, validate_default=True)
 
@@ -114,6 +118,7 @@ accounts_map = {
     "shadowtls": ShadowTLSAccount,
     "tuic": TUICAccount,
     "hysteria2": Hysteria2Account,
+    "anytls": AnyTLSAccount,
     "naive": NaiveAccount,
     "socks": SocksAccount,
     "mixed": MixedAccount,
