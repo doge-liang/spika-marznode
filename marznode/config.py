@@ -54,6 +54,8 @@ SSL_CLIENT_CERT_FILE = config("SSL_CLIENT_CERT_FILE", default="")
 MARZNODE_STORAGE_TYPE = config("MARZNODE_STORAGE_TYPE", default="memory").lower()
 MARZNODE_DB_PATH = config("MARZNODE_DB_PATH", default="/var/lib/marznode/marznode.db")
 
+MARZNODE_VERSION = config("MARZNODE_VERSION", default=None)
+
 DEBUG = config("DEBUG", cast=bool, default=False)
 
 

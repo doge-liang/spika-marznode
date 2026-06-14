@@ -12,6 +12,7 @@ from grpclib.server import Stream
 
 from marznode.backends.abstract_backend import VPNBackend
 from marznode.storage import BaseStorage
+from marznode.config import MARZNODE_VERSION
 from .service_grpc import MarzServiceBase
 from .service_pb2 import (
     BackendConfig as BackendConfig_pb2,
@@ -136,6 +137,14 @@ class MarzService(MarzServiceBase):
             )
             for name, backend in self._backends.items()
         ]
+        if MARZNODE_VERSION:
+            backends.append(
+                Backend(
+                    name="spika-node",
+                    type="marznode",
+                    version=MARZNODE_VERSION,
+                )
+            )
         await stream.send_message(BackendsResponse(backends=backends))
 
     async def RepopulateUsers(
