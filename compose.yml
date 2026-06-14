@@ -1,6 +1,6 @@
 services:
   marznode:
-    image: ghcr.io/doge-liang/spika-marznode:0.7.2
+    image: ghcr.io/doge-liang/spika-marznode:0.7.3
     restart: always
     network_mode: host
     command: [ "sh", "-c", "sleep 10 && python3 marznode.py" ]
