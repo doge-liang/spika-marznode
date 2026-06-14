@@ -1,14 +1,20 @@
 services:
   marznode:
-    image: dawsh/marznode:latest
+    image: ghcr.io/doge-liang/spika-marznode:0.7.2
     restart: always
     network_mode: host
     command: [ "sh", "-c", "sleep 10 && python3 marznode.py" ]
 
     environment:
+      SERVICE_ADDRESS: "0.0.0.0"
+      AUTH_GENERATION_ALGORITHM: "plain"
+      MARZNODE_STORAGE_TYPE: "sqlite"
+      MARZNODE_DB_PATH: "/var/lib/marznode/marznode.db"
+      XRAY_ENABLED: "True"
       XRAY_EXECUTABLE_PATH: "/usr/local/bin/xray"
       XRAY_ASSETS_PATH: "/usr/local/lib/xray"
       XRAY_CONFIG_PATH: "/var/lib/marznode/xray_config.json"
+      SING_BOX_ENABLED: "True"
       SING_BOX_EXECUTABLE_PATH: "/usr/local/bin/sing-box"
       HYSTERIA_EXECUTABLE_PATH: "/usr/local/bin/hysteria"
       SSL_CLIENT_CERT_FILE: "/var/lib/marznode/client.pem"
