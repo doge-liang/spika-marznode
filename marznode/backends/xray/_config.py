@@ -218,25 +218,28 @@ class XrayConfig(dict):
         routing = self.setdefault("routing", {})
         rules = routing.setdefault("rules", [])
         existing_tags = {o.get("tag") for o in self["outbounds"]}
+        existing_route_keys = {
+            (tuple(rule.get("user", [])), rule.get("outboundTag"))
+            for rule in rules
+        }
 
         for user in users:
             for ob in getattr(user, "outbounds", []) or []:
                 tag = f"res-{user.username}"
-                if tag in existing_tags:
-                    continue
-                server = {"address": ob.address, "port": ob.port}
-                if ob.username:
-                    server["users"] = [
-                        {"user": ob.username, "pass": ob.password or ""}
-                    ]
-                self["outbounds"].append(
-                    {
-                        "tag": tag,
-                        "protocol": ob.protocol,
-                        "settings": {"servers": [server]},
-                    }
-                )
-                existing_tags.add(tag)
+                if tag not in existing_tags:
+                    server = {"address": ob.address, "port": ob.port}
+                    if ob.username:
+                        server["users"] = [
+                            {"user": ob.username, "pass": ob.password or ""}
+                        ]
+                    self["outbounds"].append(
+                        {
+                            "tag": tag,
+                            "protocol": ob.protocol,
+                            "settings": {"servers": [server]},
+                        }
+                    )
+                    existing_tags.add(tag)
 
                 rule = {
                     "type": "field",
@@ -245,7 +248,10 @@ class XrayConfig(dict):
                 }
                 if ob.inbound_tags:
                     rule["inboundTag"] = list(ob.inbound_tags)
-                rules.append(rule)
+                route_key = (tuple(rule["user"]), tag)
+                if route_key not in existing_route_keys:
+                    rules.append(rule)
+                    existing_route_keys.add(route_key)
 
     def to_json(self, **json_kwargs):
         if DEBUG:
