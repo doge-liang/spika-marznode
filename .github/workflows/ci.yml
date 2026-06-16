@@ -26,7 +26,7 @@ jobs:
 
       - name: panel-node proto drift check skipped
         if: env.PANEL_REPO_TOKEN == ''
-        run: echo "::notice title=Panel proto drift check skipped::Set SPIKA_PANEL_REPO_TOKEN with read access to doge-liang/spika-marzban to enable this check."
+        run: echo "Set SPIKA_PANEL_REPO_TOKEN with read access to doge-liang/spika-marzban to enable the panel-node proto drift check."
 
       - uses: actions/setup-python@v6
         with:
