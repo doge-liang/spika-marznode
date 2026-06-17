@@ -10,12 +10,14 @@ from the in-memory inbound registry on each read.
 import asyncio
 import logging
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 import aiosqlite
 
 from .base import BaseStorage
 from ..models import Inbound, Outbound, User
+from ..traffic import TrafficBytes, TrafficTotals
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,11 @@ class SqliteStorage(BaseStorage):
                     inbound_tags_json TEXT NOT NULL DEFAULT '[]',
                     PRIMARY KEY (user_id, seq),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS node_traffic (
+                    created_at TEXT PRIMARY KEY,
+                    rx_bytes INTEGER NOT NULL DEFAULT 0,
+                    tx_bytes INTEGER NOT NULL DEFAULT 0
                 );
                 """
             )
@@ -278,3 +285,57 @@ class SqliteStorage(BaseStorage):
     def remove_inbound(self, inbound: Inbound | str) -> None:
         tag = inbound if isinstance(inbound, str) else inbound.tag
         self._inbounds.pop(tag, None)
+
+    @staticmethod
+    def _hour_bucket(dt: datetime) -> datetime:
+        return (
+            dt.astimezone(timezone.utc)
+            .replace(minute=0, second=0, microsecond=0)
+        )
+
+    @staticmethod
+    def _bucket_value(dt: datetime) -> str:
+        return SqliteStorage._hour_bucket(dt).isoformat()
+
+    async def record_node_traffic(
+        self, created_at: datetime, rx_bytes: int, tx_bytes: int
+    ) -> None:
+        db = await self._conn()
+        await db.execute(
+            """
+            INSERT INTO node_traffic (created_at, rx_bytes, tx_bytes)
+            VALUES (?, ?, ?)
+            ON CONFLICT(created_at) DO UPDATE SET
+                rx_bytes = rx_bytes + excluded.rx_bytes,
+                tx_bytes = tx_bytes + excluded.tx_bytes
+            """,
+            (self._bucket_value(created_at), rx_bytes, tx_bytes),
+        )
+        await db.commit()
+
+    async def get_node_traffic_totals(self, now: datetime) -> TrafficTotals:
+        db = await self._conn()
+        now = now.astimezone(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = day_start.replace(day=1)
+
+        async def sum_since(start: datetime | None) -> TrafficBytes:
+            if start is None:
+                query = "SELECT COALESCE(SUM(rx_bytes), 0), COALESCE(SUM(tx_bytes), 0) FROM node_traffic"
+                params = ()
+            else:
+                query = """
+                    SELECT COALESCE(SUM(rx_bytes), 0), COALESCE(SUM(tx_bytes), 0)
+                      FROM node_traffic
+                     WHERE created_at >= ?
+                """
+                params = (start.isoformat(),)
+            async with db.execute(query, params) as cur:
+                row = await cur.fetchone()
+            return TrafficBytes(rx_bytes=int(row[0]), tx_bytes=int(row[1]))
+
+        return TrafficTotals(
+            today=await sum_since(day_start),
+            month=await sum_since(month_start),
+            total=await sum_since(None),
+        )

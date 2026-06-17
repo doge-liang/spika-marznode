@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 from marznode.models import Inbound, Outbound, User
+from marznode.traffic import TrafficTotals
 
 
 class BaseStorage(ABC):
@@ -81,6 +82,16 @@ class BaseStorage(ABC):
         :param user_id: the user id
         :return: list of outbounds (empty if none)
         """
+
+    @abstractmethod
+    async def record_node_traffic(
+        self, created_at, rx_bytes: int, tx_bytes: int
+    ) -> None:
+        """records VPS interface traffic deltas in an hourly bucket"""
+
+    @abstractmethod
+    async def get_node_traffic_totals(self, now) -> TrafficTotals:
+        """returns today, month, and all-time VPS interface traffic totals"""
 
     def remove_inbound(self, inbound: Inbound | str) -> None:
         """

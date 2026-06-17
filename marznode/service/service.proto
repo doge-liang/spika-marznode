@@ -82,6 +82,22 @@ message BackendStats {
   bool running = 1;
 }
 
+message TrafficTotals {
+  uint64 rx_bytes = 1;
+  uint64 tx_bytes = 2;
+}
+
+message NodeTrafficStats {
+  bool available = 1;
+  uint64 rx_total = 2;
+  uint64 tx_total = 3;
+  double rx_rate = 4;
+  double tx_rate = 5;
+  TrafficTotals today = 6;
+  TrafficTotals month = 7;
+  TrafficTotals total = 8;
+}
+
 service MarzService {
   rpc SyncUsers(stream UserData) returns (Empty);
   rpc RepopulateUsers(UsersData) returns (Empty);
@@ -91,4 +107,5 @@ service MarzService {
   rpc RestartBackend(RestartBackendRequest) returns (Empty);
   rpc StreamBackendLogs(BackendLogsRequest) returns (stream LogLine);
   rpc GetBackendStats(Backend) returns (BackendStats);
+  rpc FetchNodeTrafficStats(Empty) returns (NodeTrafficStats);
 }

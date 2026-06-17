@@ -135,3 +135,31 @@ class BackendStats(_message.Message):
     RUNNING_FIELD_NUMBER: _ClassVar[int]
     running: bool
     def __init__(self, running: bool = ...) -> None: ...
+
+class TrafficTotals(_message.Message):
+    __slots__ = ("rx_bytes", "tx_bytes")
+    RX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    TX_BYTES_FIELD_NUMBER: _ClassVar[int]
+    rx_bytes: int
+    tx_bytes: int
+    def __init__(self, rx_bytes: _Optional[int] = ..., tx_bytes: _Optional[int] = ...) -> None: ...
+
+class NodeTrafficStats(_message.Message):
+    __slots__ = ("available", "rx_total", "tx_total", "rx_rate", "tx_rate", "today", "month", "total")
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    RX_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    TX_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    RX_RATE_FIELD_NUMBER: _ClassVar[int]
+    TX_RATE_FIELD_NUMBER: _ClassVar[int]
+    TODAY_FIELD_NUMBER: _ClassVar[int]
+    MONTH_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    available: bool
+    rx_total: int
+    tx_total: int
+    rx_rate: float
+    tx_rate: float
+    today: TrafficTotals
+    month: TrafficTotals
+    total: TrafficTotals
+    def __init__(self, available: bool = ..., rx_total: _Optional[int] = ..., tx_total: _Optional[int] = ..., rx_rate: _Optional[float] = ..., tx_rate: _Optional[float] = ..., today: _Optional[_Union[TrafficTotals, _Mapping]] = ..., month: _Optional[_Union[TrafficTotals, _Mapping]] = ..., total: _Optional[_Union[TrafficTotals, _Mapping]] = ...) -> None: ...
