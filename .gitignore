@@ -171,3 +171,4 @@ bin/
 pyvenv.cfg
 _version.py
 .codegraph/
+.worktrees/
