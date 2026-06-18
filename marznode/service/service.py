@@ -6,6 +6,7 @@ Right now it only supports Xray but that is subject to change
 import json
 import logging
 from collections import defaultdict
+from datetime import datetime, timezone
 
 from grpclib import GRPCError, Status
 from grpclib.server import Stream
@@ -20,6 +21,8 @@ from .service_pb2 import (
     BackendLogsRequest,
     RestartBackendRequest,
     BackendStats,
+    TrafficTotals,
+    NodeTrafficStats,
 )
 from .service_pb2 import (
     UserData,
@@ -31,6 +34,7 @@ from .service_pb2 import (
     LogLine,
 )
 from ..models import User, Inbound as InboundModel, Outbound as OutboundModel
+from ..traffic import TrafficSample
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +42,15 @@ logger = logging.getLogger(__name__)
 class MarzService(MarzServiceBase):
     """Add/Update/Delete users based on calls from the client"""
 
-    def __init__(self, storage: BaseStorage, backends: dict[str, VPNBackend]):
+    def __init__(
+        self,
+        storage: BaseStorage,
+        backends: dict[str, VPNBackend],
+        traffic_monitor=None,
+    ):
         self._backends = backends
         self._storage = storage
+        self._traffic_monitor = traffic_monitor
 
     def _resolve_tag(self, inbound_tag: str) -> VPNBackend:
         for backend in self._backends.values():
@@ -214,3 +224,39 @@ class MarzService(MarzServiceBase):
             )
         running = self._backends[backend.name].running
         await stream.send_message(BackendStats(running=running))
+
+    async def FetchNodeTrafficStats(
+        self, stream: Stream[Empty, NodeTrafficStats]
+    ) -> None:
+        await stream.recv_message()
+        if self._traffic_monitor is None:
+            sample = TrafficSample(
+                available=False, sampled_at=datetime.now(timezone.utc)
+            )
+        else:
+            sample = getattr(self._traffic_monitor, "latest_sample", None)
+            if sample is None:
+                sample = self._traffic_monitor.sample()
+
+        totals = await self._storage.get_node_traffic_totals(sample.sampled_at)
+        await stream.send_message(
+            NodeTrafficStats(
+                available=sample.available,
+                rx_total=sample.rx_total,
+                tx_total=sample.tx_total,
+                rx_rate=sample.rx_rate,
+                tx_rate=sample.tx_rate,
+                today=TrafficTotals(
+                    rx_bytes=totals.today.rx_bytes,
+                    tx_bytes=totals.today.tx_bytes,
+                ),
+                month=TrafficTotals(
+                    rx_bytes=totals.month.rx_bytes,
+                    tx_bytes=totals.month.tx_bytes,
+                ),
+                total=TrafficTotals(
+                    rx_bytes=totals.total.rx_bytes,
+                    tx_bytes=totals.total.tx_bytes,
+                ),
+            )
+        )

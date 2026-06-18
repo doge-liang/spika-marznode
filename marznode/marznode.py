@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import asyncio
 
 from grpclib.health.service import Health
 from grpclib.server import Server
@@ -23,9 +24,11 @@ from marznode.config import (
     SING_BOX_ENABLED,
     SING_BOX_EXECUTABLE_PATH,
     SING_BOX_CONFIG_PATH,
+    MARZNODE_TRAFFIC_MONITOR_INTERVAL,
 )
 from marznode.service import MarzService
 from marznode.storage import BaseStorage, MemoryStorage, SqliteStorage
+from marznode.traffic import TrafficMonitor, run_traffic_monitor
 from marznode.utils.ssl import generate_keypair, create_secure_context
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,12 @@ async def main():
         )
 
     storage = _build_storage()
+    traffic_monitor = TrafficMonitor()
+    asyncio.create_task(
+        run_traffic_monitor(
+            storage, traffic_monitor, MARZNODE_TRAFFIC_MONITOR_INTERVAL
+        )
+    )
     backends = dict()
     if XRAY_ENABLED:
         xray_backend = XrayBackend(
@@ -88,7 +97,9 @@ async def main():
         await sing_box_backend.start()
         backends.update({"sing-box": sing_box_backend})
 
-    server = Server([MarzService(storage, backends), Health()])
+    server = Server(
+        [MarzService(storage, backends, traffic_monitor=traffic_monitor), Health()]
+    )
 
     with graceful_exit([server]):
         await server.start(config.SERVICE_ADDRESS, config.SERVICE_PORT, ssl=ssl_context)

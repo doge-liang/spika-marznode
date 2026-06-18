@@ -1,7 +1,10 @@
 """Storage backend for storing marznode data in memory"""
 
+from datetime import timezone
+
 from .base import BaseStorage
 from ..models import User, Inbound, Outbound
+from ..traffic import TrafficBytes, TrafficTotals
 
 
 class MemoryStorage(BaseStorage):
@@ -11,7 +14,14 @@ class MemoryStorage(BaseStorage):
     """
 
     def __init__(self):
-        self.storage = dict({"users": {}, "inbounds": {}, "user_outbounds": {}})
+        self.storage = dict(
+            {
+                "users": {},
+                "inbounds": {},
+                "user_outbounds": {},
+                "node_traffic": {},
+            }
+        )
 
     async def list_users(self, user_id: int | None = None) -> list[User] | User | None:
         if user_id:
@@ -77,3 +87,47 @@ class MemoryStorage(BaseStorage):
 
     async def list_user_outbounds(self, user_id: int) -> list[Outbound]:
         return list(self.storage["user_outbounds"].get(user_id, []))
+
+    @staticmethod
+    def _hour_bucket(dt):
+        return (
+            dt.astimezone(timezone.utc)
+            .replace(minute=0, second=0, microsecond=0)
+        )
+
+    async def record_node_traffic(
+        self, created_at, rx_bytes: int, tx_bytes: int
+    ) -> None:
+        bucket = self._hour_bucket(created_at)
+        current = self.storage["node_traffic"].setdefault(
+            bucket, TrafficBytes()
+        )
+        self.storage["node_traffic"][bucket] = TrafficBytes(
+            rx_bytes=current.rx_bytes + rx_bytes,
+            tx_bytes=current.tx_bytes + tx_bytes,
+        )
+
+    async def get_node_traffic_totals(self, now) -> TrafficTotals:
+        now = now.astimezone(timezone.utc)
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = day_start.replace(day=1)
+
+        def sum_since(start):
+            rx = tx = 0
+            for bucket, usage in self.storage["node_traffic"].items():
+                if bucket >= start:
+                    rx += usage.rx_bytes
+                    tx += usage.tx_bytes
+            return TrafficBytes(rx_bytes=rx, tx_bytes=tx)
+
+        total_rx = sum(
+            usage.rx_bytes for usage in self.storage["node_traffic"].values()
+        )
+        total_tx = sum(
+            usage.tx_bytes for usage in self.storage["node_traffic"].values()
+        )
+        return TrafficTotals(
+            today=sum_since(day_start),
+            month=sum_since(month_start),
+            total=TrafficBytes(rx_bytes=total_rx, tx_bytes=total_tx),
+        )

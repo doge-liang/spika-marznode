@@ -46,6 +46,10 @@ class MarzServiceBase(abc.ABC):
     async def GetBackendStats(self, stream: 'grpclib.server.Stream[marznode.service.service_pb2.Backend, marznode.service.service_pb2.BackendStats]') -> None:
         pass
 
+    @abc.abstractmethod
+    async def FetchNodeTrafficStats(self, stream: 'grpclib.server.Stream[marznode.service.service_pb2.Empty, marznode.service.service_pb2.NodeTrafficStats]') -> None:
+        pass
+
     def __mapping__(self) -> typing.Dict[str, grpclib.const.Handler]:
         return {
             '/marznode.MarzService/SyncUsers': grpclib.const.Handler(
@@ -95,6 +99,12 @@ class MarzServiceBase(abc.ABC):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 marznode.service.service_pb2.Backend,
                 marznode.service.service_pb2.BackendStats,
+            ),
+            '/marznode.MarzService/FetchNodeTrafficStats': grpclib.const.Handler(
+                self.FetchNodeTrafficStats,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                marznode.service.service_pb2.Empty,
+                marznode.service.service_pb2.NodeTrafficStats,
             ),
         }
 
@@ -149,4 +159,10 @@ class MarzServiceStub:
             '/marznode.MarzService/GetBackendStats',
             marznode.service.service_pb2.Backend,
             marznode.service.service_pb2.BackendStats,
+        )
+        self.FetchNodeTrafficStats = grpclib.client.UnaryUnaryMethod(
+            channel,
+            '/marznode.MarzService/FetchNodeTrafficStats',
+            marznode.service.service_pb2.Empty,
+            marznode.service.service_pb2.NodeTrafficStats,
         )
