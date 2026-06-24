@@ -62,8 +62,7 @@ class SingBoxRunner:
         try:
             self.restarting = True
             logger.warning("Restarting sing-box")
-            self.stop()
-            await self._logs_task
+            await self.stop()
             await self.start(config_path)
         finally:
             self.restarting = False

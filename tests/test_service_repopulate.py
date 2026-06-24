@@ -26,10 +26,10 @@ class FakeBackend:
         return inbound_tag in self.tags
 
     async def add_user(self, user: User, inbound: Inbound):
-        self.added.append((user.id, user.username, inbound.tag))
+        self.added.append((user.id, user.username, user.key, inbound.tag))
 
     async def remove_user(self, user: User, inbound: Inbound):
-        self.removed.append((user.id, user.username, inbound.tag))
+        self.removed.append((user.id, user.username, user.key, inbound.tag))
 
     def list_inbounds(self):
         return []
@@ -91,7 +91,7 @@ async def test_update_user_stores_submitted_outbounds():
     )
 
     stored = await storage.list_users(7)
-    assert backend.added == [(7, "alice", "res-in")]
+    assert backend.added == [(7, "alice", "k-alice", "res-in")]
     assert [inbound.tag for inbound in stored.inbounds] == ["res-in"]
     assert [outbound.model_dump() for outbound in stored.outbounds] == [
         {
@@ -131,8 +131,8 @@ async def test_update_user_replaces_inbounds_and_clears_outbounds():
     await service._update_user(_user_data(8, "carol", ["new-in"]))
 
     stored = await storage.list_users(8)
-    assert backend.removed == [(8, "carol", "old-in")]
-    assert backend.added == [(8, "carol", "new-in")]
+    assert backend.removed == [(8, "carol", "k-carol", "old-in")]
+    assert backend.added == [(8, "carol", "k-carol", "new-in")]
     assert [inbound.tag for inbound in stored.inbounds] == ["new-in"]
     assert stored.outbounds == []
 
@@ -189,6 +189,31 @@ async def test_update_existing_user_replaces_outbounds():
 
 
 @pytest.mark.asyncio
+async def test_update_existing_user_replaces_changed_identity_on_same_inbounds():
+    storage = MemoryStorage()
+    inbound = _inbound("same-in")
+    storage.register_inbound(inbound)
+    existing = User(id=11, username="old-name", key="old-key")
+    await storage.update_user_inbounds(existing, [inbound])
+    backend = FakeBackend("same-in")
+    service = MarzService(storage, {"xray": backend})
+
+    await service._update_user(
+        UserData(
+            user=PbUser(id=11, username="new-name", key="new-key"),
+            inbounds=[PbInbound(tag="same-in")],
+        )
+    )
+
+    stored = await storage.list_users(11)
+    assert backend.removed == [(11, "old-name", "old-key", "same-in")]
+    assert backend.added == [(11, "new-name", "new-key", "same-in")]
+    assert stored.username == "new-name"
+    assert stored.key == "new-key"
+    assert [inbound.tag for inbound in stored.inbounds] == ["same-in"]
+
+
+@pytest.mark.asyncio
 async def test_repopulate_users_removes_stale_local_users():
     storage = MemoryStorage()
     kept_inbound = _inbound("kept-in")
@@ -225,4 +250,4 @@ async def test_repopulate_users_removes_stale_local_users():
     kept = await storage.list_users(7)
     assert [inbound.tag for inbound in kept.inbounds] == ["kept-in"]
     assert [outbound.address for outbound in kept.outbounds] == ["203.0.113.10"]
-    assert backend.removed == [(99, "stale", "stale-in")]
+    assert backend.removed == [(99, "stale", "k-stale", "stale-in")]

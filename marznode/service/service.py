@@ -121,10 +121,18 @@ class MarzService(MarzServiceBase):
         new_inbounds = await self._storage.list_inbounds(tag=list(new_tags))
         added_inbounds = await self._storage.list_inbounds(tag=list(added_tags))
         removed_inbounds = await self._storage.list_inbounds(tag=list(removed_tags))
-        await self._remove_user(storage_user, removed_inbounds)
-        await self._add_user(storage_user, added_inbounds)
-        await self._storage.update_user_inbounds(storage_user, new_inbounds)
-        await self._storage.update_user_outbounds(storage_user, outbounds)
+        identity_changed = (
+            storage_user.username != user.username
+            or storage_user.key != user.key
+        )
+        if identity_changed:
+            await self._remove_user(storage_user, storage_user.inbounds)
+            await self._add_user(user, new_inbounds)
+        else:
+            await self._remove_user(storage_user, removed_inbounds)
+            await self._add_user(user, added_inbounds)
+        await self._storage.update_user_inbounds(user, new_inbounds)
+        await self._storage.update_user_outbounds(user, outbounds)
 
     async def SyncUsers(self, stream: Stream[UserData, Empty]) -> None:
         async for user_data in stream:
