@@ -3,7 +3,7 @@
 from datetime import timezone
 
 from .base import BaseStorage
-from ..models import User, Inbound, Outbound
+from ..models import NodeOutboundPolicy, User, Inbound, Outbound
 from ..traffic import TrafficBytes, TrafficTotals
 
 
@@ -19,6 +19,7 @@ class MemoryStorage(BaseStorage):
                 "users": {},
                 "inbounds": {},
                 "user_outbounds": {},
+                "node_outbound_policies": [],
                 "node_traffic": {},
             }
         )
@@ -87,6 +88,14 @@ class MemoryStorage(BaseStorage):
 
     async def list_user_outbounds(self, user_id: int) -> list[Outbound]:
         return list(self.storage["user_outbounds"].get(user_id, []))
+
+    async def replace_node_outbound_policies(
+        self, policies: list[NodeOutboundPolicy]
+    ) -> None:
+        self.storage["node_outbound_policies"] = list(policies)
+
+    async def list_node_outbound_policies(self) -> list[NodeOutboundPolicy]:
+        return list(self.storage["node_outbound_policies"])
 
     @staticmethod
     def _hour_bucket(dt):

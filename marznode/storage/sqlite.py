@@ -16,7 +16,7 @@ from pathlib import Path
 import aiosqlite
 
 from .base import BaseStorage
-from ..models import Inbound, Outbound, User
+from ..models import Inbound, NodeOutboundPolicy, Outbound, User
 from ..traffic import TrafficBytes, TrafficTotals
 
 logger = logging.getLogger(__name__)
@@ -63,6 +63,17 @@ class SqliteStorage(BaseStorage):
                     inbound_tags_json TEXT NOT NULL DEFAULT '[]',
                     PRIMARY KEY (user_id, seq),
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS node_outbound_policies (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    seq INTEGER NOT NULL,
+                    protocol TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    port INTEGER NOT NULL,
+                    username TEXT,
+                    password TEXT,
+                    inbound_tags_json TEXT NOT NULL DEFAULT '[]'
                 );
                 CREATE TABLE IF NOT EXISTS node_traffic (
                     created_at TEXT PRIMARY KEY,
@@ -275,6 +286,65 @@ class SqliteStorage(BaseStorage):
                 username=r[3],
                 password=r[4],
                 inbound_tags=_json.loads(r[5] or "[]"),
+            )
+            for r in rows
+        ]
+
+    async def replace_node_outbound_policies(
+        self, policies: list[NodeOutboundPolicy]
+    ) -> None:
+        import json as _json
+
+        db = await self._conn()
+        await db.execute("DELETE FROM node_outbound_policies")
+        if policies:
+            await db.executemany(
+                """
+                INSERT INTO node_outbound_policies
+                    (id, name, seq, protocol, address, port,
+                     username, password, inbound_tags_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        policy.id,
+                        policy.name,
+                        i,
+                        policy.protocol,
+                        policy.address,
+                        policy.port,
+                        policy.username,
+                        policy.password,
+                        _json.dumps(list(policy.inbound_tags or [])),
+                    )
+                    for i, policy in enumerate(policies)
+                ],
+            )
+        await db.commit()
+
+    async def list_node_outbound_policies(self) -> list[NodeOutboundPolicy]:
+        import json as _json
+
+        db = await self._conn()
+        async with db.execute(
+            """
+            SELECT id, name, protocol, address, port,
+                   username, password, inbound_tags_json
+              FROM node_outbound_policies
+             ORDER BY seq
+            """
+        ) as cur:
+            rows = await cur.fetchall()
+        return [
+            NodeOutboundPolicy(
+                id=r[0],
+                name=r[1],
+                protocol=r[2],
+                address=r[3],
+                port=r[4],
+                username=r[5],
+                password=r[6],
+                inbound_tags=_json.loads(r[7] or "[]"),
             )
             for r in rows
         ]

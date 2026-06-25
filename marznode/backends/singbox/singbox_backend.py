@@ -108,6 +108,9 @@ class SingBoxBackend(VPNBackend):
         self._inbound_tags = {i["tag"] for i in self._config.inbounds}
         self._inbounds = list(self._config.list_inbounds())
         await self.add_storage_users()
+        self._config.apply_node_outbound_policies(
+            await self._storage.list_node_outbound_policies()
+        )
         self._save_config(self._config.to_json(), full=True)
         self._api = SingBoxAPI("127.0.0.1", api_port)
         await self._runner.start(self._full_config_path)

@@ -41,6 +41,17 @@ message Outbound {
   repeated string inbound_tags = 6;
 }
 
+message NodeOutboundPolicy {
+  uint32 id = 1;
+  string name = 2;
+  string protocol = 3;
+  string address = 4;
+  uint32 port = 5;
+  optional string username = 6;
+  optional string password = 7;
+  repeated string inbound_tags = 8;
+}
+
 message UserData {
   User user = 1;
   repeated Inbound inbounds = 2;
@@ -49,6 +60,7 @@ message UserData {
 
 message UsersData {
   repeated UserData users_data = 1;
+  repeated NodeOutboundPolicy node_outbound_policies = 2;
 }
 
 message UsersStats {

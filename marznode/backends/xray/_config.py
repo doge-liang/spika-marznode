@@ -5,7 +5,12 @@ import commentjson
 
 from marznode.config import XRAY_EXECUTABLE_PATH, XRAY_VLESS_REALITY_FLOW, DEBUG
 from ._utils import get_x25519
-from ...models import Inbound
+try:
+    from ...models import Inbound, NodeOutboundPolicy
+except ImportError:
+    from ...models import Inbound
+
+    NodeOutboundPolicy = object
 from ...storage import BaseStorage
 
 transport_map = defaultdict(
@@ -48,6 +53,23 @@ def first_non_empty(values, default=""):
     if values:
         return values[0] or default
     return default
+
+
+def listify(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def is_broad_inbound_route(rule):
+    if "user" in rule or "inboundTag" not in rule:
+        return False
+    for scoped_key in ("domain", "ip", "protocol", "port", "network", "source"):
+        if rule.get(scoped_key):
+            return False
+    return True
 
 
 def merge_dicts(a, b): # B overrides A dict
@@ -183,7 +205,7 @@ class XrayConfig(dict):
 
                 elif net in ["ws", "websocket", "httpupgrade", "splithttp", "xhttp"]:
                     settings["path"] = net_settings.get("path")
-                    settings["host"] = net_settings.get("host")
+                    settings["host"] = listify(net_settings.get("host"))
 
                 elif net == "grpc":
                     settings["path"] = net_settings.get("serviceName")
@@ -262,8 +284,74 @@ class XrayConfig(dict):
                     rule["inboundTag"] = list(ob.inbound_tags)
                 route_key = (tuple(rule["user"]), tag)
                 if route_key not in existing_route_keys:
-                    rules.append(rule)
+                    insert_at = next(
+                        (
+                            idx
+                            for idx, existing_rule in enumerate(rules)
+                            if is_broad_inbound_route(existing_rule)
+                        ),
+                        len(rules),
+                    )
+                    rules.insert(insert_at, rule)
                     existing_route_keys.add(route_key)
+
+    @staticmethod
+    def _node_policy_tag(policy: NodeOutboundPolicy) -> str:
+        return f"NODE_POLICY_{policy.id}"
+
+    @staticmethod
+    def _policy_rule_index(rules: list[dict]) -> int:
+        """Place policy rules before broad catch-all routing rules."""
+        for index, rule in enumerate(rules):
+            has_match = any(
+                key in rule
+                for key in ("inboundTag", "user", "domain", "ip", "port")
+            )
+            if not has_match and (
+                rule.get("outboundTag") or rule.get("balancerTag")
+            ):
+                return index
+        return len(rules)
+
+    def apply_node_outbound_policies(
+        self, policies: list[NodeOutboundPolicy]
+    ) -> None:
+        """Inject node-level upstream outbounds + inbound-tag routing rules."""
+        self.setdefault("outbounds", [])
+        routing = self.setdefault("routing", {})
+        rules = routing.setdefault("rules", [])
+        existing_tags = {o.get("tag") for o in self["outbounds"]}
+        existing_route_keys = {
+            (tuple(rule.get("inboundTag", [])), rule.get("outboundTag"))
+            for rule in rules
+        }
+
+        for policy in policies:
+            tag = self._node_policy_tag(policy)
+            if tag not in existing_tags:
+                server = {"address": policy.address, "port": policy.port}
+                if policy.username:
+                    server["users"] = [
+                        {"user": policy.username, "pass": policy.password or ""}
+                    ]
+                self["outbounds"].append(
+                    {
+                        "tag": tag,
+                        "protocol": policy.protocol,
+                        "settings": {"servers": [server]},
+                    }
+                )
+                existing_tags.add(tag)
+
+            rule = {
+                "type": "field",
+                "inboundTag": list(policy.inbound_tags or []),
+                "outboundTag": tag,
+            }
+            route_key = (tuple(rule["inboundTag"]), tag)
+            if route_key not in existing_route_keys:
+                rules.insert(self._policy_rule_index(rules), rule)
+                existing_route_keys.add(route_key)
 
     def to_json(self, **json_kwargs):
         if DEBUG:

@@ -2,7 +2,8 @@ from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
+from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -71,6 +72,26 @@ class Outbound(_message.Message):
     inbound_tags: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, protocol: _Optional[str] = ..., address: _Optional[str] = ..., port: _Optional[int] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., inbound_tags: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class NodeOutboundPolicy(_message.Message):
+    __slots__ = ("id", "name", "protocol", "address", "port", "username", "password", "inbound_tags")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PROTOCOL_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    PORT_FIELD_NUMBER: _ClassVar[int]
+    USERNAME_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    INBOUND_TAGS_FIELD_NUMBER: _ClassVar[int]
+    id: int
+    name: str
+    protocol: str
+    address: str
+    port: int
+    username: str
+    password: str
+    inbound_tags: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., protocol: _Optional[str] = ..., address: _Optional[str] = ..., port: _Optional[int] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., inbound_tags: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class UserData(_message.Message):
     __slots__ = ("user", "inbounds", "outbounds")
     USER_FIELD_NUMBER: _ClassVar[int]
@@ -82,10 +103,12 @@ class UserData(_message.Message):
     def __init__(self, user: _Optional[_Union[User, _Mapping]] = ..., inbounds: _Optional[_Iterable[_Union[Inbound, _Mapping]]] = ..., outbounds: _Optional[_Iterable[_Union[Outbound, _Mapping]]] = ...) -> None: ...
 
 class UsersData(_message.Message):
-    __slots__ = ("users_data",)
+    __slots__ = ("users_data", "node_outbound_policies")
     USERS_DATA_FIELD_NUMBER: _ClassVar[int]
+    NODE_OUTBOUND_POLICIES_FIELD_NUMBER: _ClassVar[int]
     users_data: _containers.RepeatedCompositeFieldContainer[UserData]
-    def __init__(self, users_data: _Optional[_Iterable[_Union[UserData, _Mapping]]] = ...) -> None: ...
+    node_outbound_policies: _containers.RepeatedCompositeFieldContainer[NodeOutboundPolicy]
+    def __init__(self, users_data: _Optional[_Iterable[_Union[UserData, _Mapping]]] = ..., node_outbound_policies: _Optional[_Iterable[_Union[NodeOutboundPolicy, _Mapping]]] = ...) -> None: ...
 
 class UsersStats(_message.Message):
     __slots__ = ("users_stats",)
@@ -120,7 +143,7 @@ class BackendLogsRequest(_message.Message):
     INCLUDE_BUFFER_FIELD_NUMBER: _ClassVar[int]
     backend_name: str
     include_buffer: bool
-    def __init__(self, backend_name: _Optional[str] = ..., include_buffer: bool = ...) -> None: ...
+    def __init__(self, backend_name: _Optional[str] = ..., include_buffer: _Optional[bool] = ...) -> None: ...
 
 class RestartBackendRequest(_message.Message):
     __slots__ = ("backend_name", "config")
@@ -134,7 +157,7 @@ class BackendStats(_message.Message):
     __slots__ = ("running",)
     RUNNING_FIELD_NUMBER: _ClassVar[int]
     running: bool
-    def __init__(self, running: bool = ...) -> None: ...
+    def __init__(self, running: _Optional[bool] = ...) -> None: ...
 
 class TrafficTotals(_message.Message):
     __slots__ = ("rx_bytes", "tx_bytes")
@@ -162,4 +185,4 @@ class NodeTrafficStats(_message.Message):
     today: TrafficTotals
     month: TrafficTotals
     total: TrafficTotals
-    def __init__(self, available: bool = ..., rx_total: _Optional[int] = ..., tx_total: _Optional[int] = ..., rx_rate: _Optional[float] = ..., tx_rate: _Optional[float] = ..., today: _Optional[_Union[TrafficTotals, _Mapping]] = ..., month: _Optional[_Union[TrafficTotals, _Mapping]] = ..., total: _Optional[_Union[TrafficTotals, _Mapping]] = ...) -> None: ...
+    def __init__(self, available: _Optional[bool] = ..., rx_total: _Optional[int] = ..., tx_total: _Optional[int] = ..., rx_rate: _Optional[float] = ..., tx_rate: _Optional[float] = ..., today: _Optional[_Union[TrafficTotals, _Mapping]] = ..., month: _Optional[_Union[TrafficTotals, _Mapping]] = ..., total: _Optional[_Union[TrafficTotals, _Mapping]] = ...) -> None: ...

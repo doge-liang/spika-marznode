@@ -128,3 +128,45 @@ def test_apply_user_outbounds_keeps_existing_res_tag_but_adds_missing_route():
             "inboundTag": ["res-in"],
         }
     ]
+
+
+def test_apply_user_outbounds_precedes_broad_node_level_inbound_routes():
+    config = _config()
+    config["routing"]["rules"] = [
+        {"type": "field", "ip": ["geoip:private"], "outboundTag": "BLOCK"},
+        {
+            "type": "field",
+            "inboundTag": ["main-in"],
+            "outboundTag": "HQ_EXIT",
+        },
+    ]
+    user = User(
+        id=7,
+        username="alice",
+        key="k-alice",
+        outbounds=[
+            Outbound(
+                protocol="socks",
+                address="198.51.100.10",
+                port=1080,
+                inbound_tags=["main-in"],
+            )
+        ],
+    )
+
+    config.apply_user_outbounds([user])
+
+    assert config["routing"]["rules"] == [
+        {"type": "field", "ip": ["geoip:private"], "outboundTag": "BLOCK"},
+        {
+            "type": "field",
+            "user": ["7.alice"],
+            "outboundTag": "res-alice",
+            "inboundTag": ["main-in"],
+        },
+        {
+            "type": "field",
+            "inboundTag": ["main-in"],
+            "outboundTag": "HQ_EXIT",
+        },
+    ]

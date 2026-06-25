@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from marznode.models import Inbound, Outbound, User
+from marznode.models import Inbound, NodeOutboundPolicy, Outbound, User
 from marznode.traffic import TrafficTotals
 
 
@@ -82,6 +82,16 @@ class BaseStorage(ABC):
         :param user_id: the user id
         :return: list of outbounds (empty if none)
         """
+
+    @abstractmethod
+    async def replace_node_outbound_policies(
+        self, policies: list[NodeOutboundPolicy]
+    ) -> None:
+        """replaces all node-level outbound policies with the given list"""
+
+    @abstractmethod
+    async def list_node_outbound_policies(self) -> list[NodeOutboundPolicy]:
+        """lists all node-level outbound policies"""
 
     @abstractmethod
     async def record_node_traffic(

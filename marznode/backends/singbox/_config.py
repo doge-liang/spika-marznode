@@ -5,7 +5,7 @@ import commentjson
 from marznode.backends.singbox._accounts import accounts_map
 from marznode.backends.xray._utils import get_x25519
 from marznode.config import XRAY_EXECUTABLE_PATH
-from marznode.models import User, Inbound
+from marznode.models import NodeOutboundPolicy, User, Inbound
 from marznode.storage import BaseStorage
 
 
@@ -153,6 +153,55 @@ class SingBoxConfig(dict):
                 if user.get("name") != identifier and user.get("username") != identifier
             ]
             break
+
+    @staticmethod
+    def _node_policy_tag(policy: NodeOutboundPolicy) -> str:
+        return f"NODE_POLICY_{policy.id}"
+
+    @staticmethod
+    def _policy_rule_index(rules: list[dict]) -> int:
+        """Place policy rules before broad catch-all route rules."""
+        for index, rule in enumerate(rules):
+            has_match = any(key in rule for key in ("inbound", "domain", "ip"))
+            if not has_match and rule.get("outbound"):
+                return index
+        return len(rules)
+
+    def apply_node_outbound_policies(
+        self, policies: list[NodeOutboundPolicy]
+    ) -> None:
+        self.setdefault("outbounds", [])
+        route = self.setdefault("route", {})
+        rules = route.setdefault("rules", [])
+        existing_tags = {o.get("tag") for o in self["outbounds"]}
+        existing_route_keys = {
+            (tuple(rule.get("inbound", [])), rule.get("outbound"))
+            for rule in rules
+        }
+
+        for policy in policies:
+            tag = self._node_policy_tag(policy)
+            if tag not in existing_tags:
+                outbound = {
+                    "type": policy.protocol,
+                    "tag": tag,
+                    "server": policy.address,
+                    "server_port": policy.port,
+                }
+                if policy.username:
+                    outbound["username"] = policy.username
+                    outbound["password"] = policy.password or ""
+                self["outbounds"].append(outbound)
+                existing_tags.add(tag)
+
+            rule = {
+                "inbound": list(policy.inbound_tags or []),
+                "outbound": tag,
+            }
+            route_key = (tuple(rule["inbound"]), tag)
+            if route_key not in existing_route_keys:
+                rules.insert(self._policy_rule_index(rules), rule)
+                existing_route_keys.add(route_key)
 
     def register_inbounds(self, storage: BaseStorage):
         for inbound in self.list_inbounds():

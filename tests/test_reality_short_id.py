@@ -59,6 +59,38 @@ def test_xray_reality_prefers_non_empty_short_id(monkeypatch):
     assert config.list_inbounds()[0].config["sid"] == "0123456789abcdef"
 
 
+def test_xray_http_transport_host_is_normalized_to_list():
+    config = XrayConfig(
+        json.dumps(
+            {
+                "inbounds": [
+                    {
+                        "tag": "xhttp-in",
+                        "port": 8443,
+                        "protocol": "vless",
+                        "settings": {"clients": [], "decryption": "none"},
+                        "streamSettings": {
+                            "network": "xhttp",
+                            "security": "tls",
+                            "xhttpSettings": {
+                                "path": "/spika-xhttp",
+                                "host": "node1.s-pika.com",
+                            },
+                        },
+                    }
+                ],
+                "outbounds": [{"tag": "DIRECT", "protocol": "freedom"}],
+                "routing": {"rules": []},
+            }
+        )
+    )
+
+    inbound = config.list_inbounds()[0].config
+
+    assert inbound["network"] == "splithttp"
+    assert inbound["host"] == ["node1.s-pika.com"]
+
+
 def test_singbox_reality_prefers_non_empty_short_id(monkeypatch):
     monkeypatch.setattr(
         singbox_config, "get_x25519", lambda *_args, **_kwargs: {"public_key": "pbk"}

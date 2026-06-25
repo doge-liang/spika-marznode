@@ -33,7 +33,12 @@ from .service_pb2 import (
     UsersStats,
     LogLine,
 )
-from ..models import User, Inbound as InboundModel, Outbound as OutboundModel
+from ..models import (
+    User,
+    Inbound as InboundModel,
+    NodeOutboundPolicy as NodeOutboundPolicyModel,
+    Outbound as OutboundModel,
+)
 from ..traffic import TrafficSample
 
 logger = logging.getLogger(__name__)
@@ -84,6 +89,28 @@ class MarzService(MarzServiceBase):
                 inbound_tags=list(ob.inbound_tags),
             )
             for ob in user_data.outbounds
+        ]
+
+    @staticmethod
+    def _decode_node_outbound_policies(
+        users_data: UsersData,
+    ) -> list[NodeOutboundPolicyModel]:
+        return [
+            NodeOutboundPolicyModel(
+                id=policy.id,
+                name=policy.name,
+                protocol=policy.protocol,
+                address=policy.address,
+                port=policy.port,
+                username=(
+                    policy.username if policy.HasField("username") else None
+                ),
+                password=(
+                    policy.password if policy.HasField("password") else None
+                ),
+                inbound_tags=list(policy.inbound_tags),
+            )
+            for policy in users_data.node_outbound_policies
         ]
 
     async def _update_user(self, user_data: UserData):
@@ -169,7 +196,11 @@ class MarzService(MarzServiceBase):
         self,
         stream: Stream[UsersData, Empty],
     ) -> None:
-        users_data = (await stream.recv_message()).users_data
+        request = await stream.recv_message()
+        await self._storage.replace_node_outbound_policies(
+            self._decode_node_outbound_policies(request)
+        )
+        users_data = request.users_data
         for user_data in users_data:
             await self._update_user(user_data)
         user_ids = {user_data.user.id for user_data in users_data}

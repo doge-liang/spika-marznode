@@ -5,6 +5,7 @@ from marznode.service.service import MarzService
 from marznode.service.service_pb2 import (
     Empty,
     Inbound as PbInbound,
+    NodeOutboundPolicy as PbNodeOutboundPolicy,
     Outbound as PbOutbound,
     User as PbUser,
     UserData,
@@ -251,3 +252,41 @@ async def test_repopulate_users_removes_stale_local_users():
     assert [inbound.tag for inbound in kept.inbounds] == ["kept-in"]
     assert [outbound.address for outbound in kept.outbounds] == ["203.0.113.10"]
     assert backend.removed == [(99, "stale", "k-stale", "stale-in")]
+
+
+@pytest.mark.asyncio
+async def test_repopulate_users_replaces_node_outbound_policies():
+    storage = MemoryStorage()
+    service = MarzService(storage, {"xray": FakeBackend()})
+    request = UsersData(
+        users_data=[],
+        node_outbound_policies=[
+            PbNodeOutboundPolicy(
+                id=17,
+                name="dmit-policy",
+                protocol="http",
+                address="163.123.200.59",
+                port=6344,
+                username="xmtjqdsz",
+                password="4f4vke1m1gpj",
+                inbound_tags=["VLESS Reality Vision DMIT"],
+            )
+        ],
+    )
+    stream = FakeStream(request)
+
+    await service.RepopulateUsers(stream)
+
+    stored = await storage.list_node_outbound_policies()
+    assert [policy.model_dump() for policy in stored] == [
+        {
+            "id": 17,
+            "name": "dmit-policy",
+            "protocol": "http",
+            "address": "163.123.200.59",
+            "port": 6344,
+            "username": "xmtjqdsz",
+            "password": "4f4vke1m1gpj",
+            "inbound_tags": ["VLESS Reality Vision DMIT"],
+        }
+    ]
