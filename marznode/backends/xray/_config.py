@@ -38,6 +38,18 @@ forced_policies = {
   }
 }
 
+def first_non_empty(values, default=""):
+    """Prefer a real Reality shortId over the legacy empty compatibility slot."""
+    if isinstance(values, str):
+        return values or default
+    for value in values or []:
+        if value:
+            return value
+    if values:
+        return values[0] or default
+    return default
+
+
 def merge_dicts(a, b): # B overrides A dict
     for key, value in b.items():
         if isinstance(value, dict) and key in a and isinstance(a[key], dict):
@@ -153,7 +165,7 @@ class XrayConfig(dict):
                     x25519 = get_x25519(XRAY_EXECUTABLE_PATH, pvk)
                     settings["pbk"] = x25519["public_key"]
 
-                    settings["sid"] = tls_settings.get("shortIds", [""])[0]
+                    settings["sid"] = first_non_empty(tls_settings.get("shortIds"))
 
                 if net in ["tcp", "raw"]:
                     header = net_settings.get("header", {})

@@ -16,7 +16,7 @@
 # `badlinkname,tfogo_checklinkname0` tags are mandatory to compile under
 # Go 1.24 (go.mod requires 1.24.7). CGO off -> static musl binary.
 FROM golang:1.24-alpine AS sb-build
-ARG SING_BOX_VERSION=v1.13.12
+ARG SING_BOX_VERSION=v1.13.13
 ENV CGO_ENABLED=0
 RUN apk add --no-cache git \
     && SB_VER="${SING_BOX_VERSION#v}" \
@@ -43,7 +43,7 @@ WORKDIR /app
 
 RUN apk add --no-cache curl unzip ca-certificates
 
-ARG XRAY_VERSION=v25.1.30
+ARG XRAY_VERSION=v26.3.27
 RUN curl -fL -o /tmp/xray.zip \
         "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VERSION}/Xray-linux-64.zip" \
     && unzip /tmp/xray.zip -d /usr/local/bin xray \
