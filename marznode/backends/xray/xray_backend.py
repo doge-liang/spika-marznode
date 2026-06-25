@@ -42,7 +42,42 @@ class XrayBackend(VPNBackend):
         self._storage = storage
         self._config_path = config_path
         self._restart_lock = asyncio.Lock()
+        self._auto_restart_lock = asyncio.Lock()
+        self._started_once = False
         asyncio.create_task(self._restart_on_failure())
+        asyncio.create_task(self._poll_runner_health())
+
+    async def _recover_stopped_runner(self, reason: str):
+        if getattr(self, "_started_once", True) is False:
+            return
+        if self.running:
+            return
+        if self._restart_lock.locked():
+            logger.debug("Xray restarting as planned")
+            return
+        if self._auto_restart_lock.locked():
+            return
+
+        async with self._auto_restart_lock:
+            if self.running:
+                return
+            if self._restart_lock.locked():
+                logger.debug("Xray restarting as planned")
+                return
+
+            logger.warning("Xray stopped unexpectedly: %s", reason)
+            if not XRAY_RESTART_ON_FAILURE:
+                return
+
+            await asyncio.sleep(XRAY_RESTART_ON_FAILURE_INTERVAL)
+            if self.running or self._restart_lock.locked():
+                return
+            try:
+                # start() repopulates storage users and rebuilds runtime
+                # outbounds/routing from durable node storage.
+                await self.start()
+            except Exception:
+                logger.exception("xray auto-restart failed; watchdog stays alive")
 
     @property
     def running(self) -> bool:
@@ -75,22 +110,13 @@ class XrayBackend(VPNBackend):
         while True:
             await self._runner.stop_event.wait()
             self._runner.stop_event.clear()
-            if self._restart_lock.locked():
-                logger.debug("Xray restarting as planned")
-            else:
-                logger.debug("Xray stopped unexpectedly")
-                if XRAY_RESTART_ON_FAILURE:
-                    await asyncio.sleep(XRAY_RESTART_ON_FAILURE_INTERVAL)
-                    try:
-                        # start() already repopulates storage users; a
-                        # second add_storage_users() here raised
-                        # EmailExistsError and permanently killed this
-                        # watchdog task after the first auto-restart.
-                        await self.start()
-                    except Exception:
-                        logger.exception(
-                            "xray auto-restart failed; watchdog stays alive"
-                        )
+            await self._recover_stopped_runner("process exit")
+
+    async def _poll_runner_health(self):
+        while True:
+            await asyncio.sleep(XRAY_RESTART_ON_FAILURE_INTERVAL)
+            if self._started_once and not self.running:
+                await self._recover_stopped_runner("poll detected stopped process")
 
     async def start(self, backend_config: str | None = None):
         if backend_config is None:
@@ -110,9 +136,11 @@ class XrayBackend(VPNBackend):
         self._inbounds = list(self._config.list_inbounds())
         self._api = XrayAPI("127.0.0.1", xray_api_port)
         await self._runner.start(self._config)
+        self._started_once = True
         await self.add_storage_users()
 
     async def stop(self):
+        self._started_once = False
         await self._runner.stop()
         for tag in self._inbound_tags:
             self._storage.remove_inbound(tag)
