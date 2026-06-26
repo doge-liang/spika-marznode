@@ -41,6 +41,12 @@ services:
       XRAY_CONFIG_PATH: "/var/lib/marznode/xray_config.json"
       SING_BOX_ENABLED: "True"
       MARZNODE_VERSION: "0.7.3"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import socket,os; socket.create_connection(('127.0.0.1', int(os.environ.get('SERVICE_PORT','53042'))), 3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     volumes:
       - /var/lib/marznode:/var/lib/marznode
     ports:
