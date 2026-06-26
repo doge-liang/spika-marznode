@@ -49,6 +49,11 @@ def _build_storage() -> BaseStorage:
 
 async def main():
     """start up and run xray and the service"""
+    from marznode.startup_checks import require_auth_algorithm_set
+
+    algo = require_auth_algorithm_set(os.environ)
+    logger.info("AUTH_GENERATION_ALGORITHM=%s", algo)
+
     if config.INSECURE:
         ssl_context = None
     else:
