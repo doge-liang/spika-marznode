@@ -21,6 +21,31 @@ from ..traffic import TrafficBytes, TrafficTotals
 
 logger = logging.getLogger(__name__)
 
+_SCHEMA_VERSION = 1  # bump when you add a NEW additive step in _migrate()
+
+
+def _add_column_if_missing(conn, table: str, column: str, ddl: str) -> bool:
+    """Idempotent additive ALTER. CREATE TABLE IF NOT EXISTS does not add
+    columns to an already-existing table, so a column added to a deployed
+    node's table would otherwise be silently never applied. Run on EVERY
+    boot (not gated on user_version) so it self-heals regardless of version
+    stamp. Returns True if it added the column."""
+    cols = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column in cols:
+        return False
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+    return True
+
+
+def _migrate(conn) -> None:
+    """Additive, idempotent, ALWAYS run after the CREATE TABLE block. Add
+    future columns via _add_column_if_missing(conn, ...) — they apply on
+    every deployed node regardless of user_version. (None pending today;
+    this establishes the mechanism + records the schema version.)"""
+    # Future example (uncomment + bump _SCHEMA_VERSION when needed):
+    #   _add_column_if_missing(conn, "users", "note", "TEXT")
+    conn.execute(f"PRAGMA user_version = {_SCHEMA_VERSION}")
+
 
 class SqliteStorage(BaseStorage):
     def __init__(self, db_path: str = "./marznode.db"):
@@ -82,6 +107,7 @@ class SqliteStorage(BaseStorage):
                 );
                 """
             )
+            _migrate(conn)
             conn.commit()
 
     async def _conn(self) -> aiosqlite.Connection:
