@@ -20,3 +20,18 @@ def _tag(name: str) -> str:
 def test_primary_compose_files_agree_on_tag():
     tags = {name: _tag(name) for name in PRIMARY}
     assert len(set(tags.values())) == 1, f"node image tag drift: {tags}"
+
+
+NAME_RE = re.compile(r"container_name:\s*([\w.\-]+)")
+
+
+def _container_name(name: str) -> str:
+    m = NAME_RE.search((NODE_DIR / name).read_text())
+    assert m, f"no container_name in {name}"
+    return m.group(1)
+
+
+def test_preprod_and_voyra_have_distinct_container_names():
+    a = _container_name("compose.preprod.yml")
+    b = _container_name("compose.voyra-preprod.yml")
+    assert a != b, f"container_name collision: both are {a!r}"

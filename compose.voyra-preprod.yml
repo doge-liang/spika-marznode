@@ -1,0 +1,34 @@
+# Isolated pre-prod marznode for voyra-854599777.
+#
+# This intentionally does NOT reuse prod /var/lib/marznode, port 53042, or
+# prod xray inbound ports. It lets racknerd pre-prod exercise RepopulateUsers
+# and xray restarts without controlling the prod marznode instance.
+
+services:
+  marznode-preprod:
+    image: ghcr.io/doge-liang/spika-marznode:0.7.4
+    container_name: spika-marznode-voyra-preprod
+    restart: unless-stopped
+    network_mode: host
+    command: ["sh", "-c", "sleep 10 && python3 marznode.py"]
+    environment:
+      SERVICE_ADDRESS: "0.0.0.0"
+      SERVICE_PORT: "53043"
+      INSECURE: "False"
+      AUTH_GENERATION_ALGORITHM: "plain"
+      MARZNODE_STORAGE_TYPE: "sqlite"
+      MARZNODE_DB_PATH: "/var/lib/marznode-preprod/marznode.db"
+      MARZNODE_VERSION: "0.7.4-preprod"
+      XRAY_ENABLED: "True"
+      XRAY_EXECUTABLE_PATH: "/usr/local/bin/xray"
+      XRAY_ASSETS_PATH: "/usr/local/lib/xray"
+      XRAY_LOCATION_ASSET: "/usr/local/lib/xray"
+      XRAY_CONFIG_PATH: "/var/lib/marznode-preprod/xray_config.json"
+      XRAY_RESTART_ON_FAILURE: "True"
+      XRAY_RESTART_ON_FAILURE_INTERVAL: "5"
+      SING_BOX_ENABLED: "False"
+      SSL_CERT_FILE: "/var/lib/marznode-preprod/server.cert"
+      SSL_KEY_FILE: "/var/lib/marznode-preprod/server.key"
+      SSL_CLIENT_CERT_FILE: "/var/lib/marznode-preprod/spika_panel_ca.pem"
+    volumes:
+      - /var/lib/marznode-preprod:/var/lib/marznode-preprod
