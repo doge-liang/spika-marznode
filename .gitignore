@@ -166,7 +166,6 @@ cython_debug/
 *.sqlite*
 
 # Local pre-prod deployment configs
-compose.voyra-preprod.yml
 examples/xray_config.voyra-preprod.json
 
 v2ray-core
